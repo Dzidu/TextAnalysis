@@ -1,9 +1,10 @@
 library(tidyverse)
+library(tidytext)
+library(tm)
+library(textstem)
+library(hunspell)
 library(rvest)
 library(stringr)
-library(lubridate)
-library(purrr)
-library(dplyr, warn.conflicts = T)
 library(RSelenium)
 
 base_url_pt1 <- "https://cryptonews.net/?page="
@@ -62,7 +63,7 @@ get_article <- function(art_url) {
   
   title <- page %>%html_node("h1") %>% html_text() %>% trimws()
   
-  lead <- page %>% html_node("p") %>% html_text() %>% trimws()
+  lead <- page %>% html_node("div.news-item.detail.content_text") %>% html_node("p") %>% html_text() %>% trimws()
   
   body <- page %>% html_node("div.news-item.detail.content_text") %>% html_nodes("p") %>% html_text() %>% trimws()
   
@@ -83,4 +84,41 @@ articles <- article_links %>%
 articles_grouped <- articles %>%
   group_by(url,title,author,date,lead )  %>%
   summarise(full_body = paste(body, collapse = " "))
+
+#getwd()
+#setwd('C:/Users/Dom/Desktop/R/Rcw/Text Analysis/TextAnalysis')
+#saveRDS(articles_grouped, file = "articles_full.RDS")
+
+
+articles_long <- articles_grouped["full_body"] %>% 
+  unnest_tokens(word,full_body)
+#  anti_join(stop_words, by = 'word') %>%
+#  filter(!str_detect(word, '[0-9]')) %>%
+#  filter(str_detect(word, '[A-z]')) %>%
+#  filter(str_detect(word, '\\w'))
+
+#articles_long <- articles_long %>%
+#  mutate(word2 = hunspell_stem(word))
+
+#articles_long$word2 <- sapply(articles_long$word2, function(x) x[1])
+
+#articles_long <- articles_long %>% 
+#  mutate(word3 = ifelse(is.na(word2), word, word2))
+
+articlesCorpus <- Corpus(VectorSource(articles_long))
+clean.corpus <- function(corpus){
+  corpus <- tm_map(corpus, tolower) 
+  corpus <- tm_map(corpus, removeWords, stopwords('en')) 
+  corpus <- tm_map(corpus, removePunctuation)
+  corpus <- tm_map(corpus, stripWhitespace) 
+  corpus <- tm_map(corpus, removeNumbers)
+  corpus <- tm_map(corpus, stemDocument)
+  return(corpus)
+}
+articlesCorpus <-  clean.corpus(articlesCorpus)
+
+inspect(articlesCorpus[1])
+
+
+
 
