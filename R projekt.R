@@ -176,21 +176,32 @@ topic_minutes <- LDA(dtm,
 mi_topics <- tidy(topic_minutes, matrix = "beta") 
 
 top_terms <- mi_topics %>%
-  group_by(topic) %>% # grupujemy wg tematów
-  top_n(10, beta) %>% # 10 największych prawdopodobieństw beta w każdym temacie
+  group_by(topic) %>% 
+  top_n(10, beta) %>%
   ungroup() %>%
-  arrange(topic, -beta) # ustalamy wg największych wartości beta
+  arrange(topic, -beta)
 
 top_terms %>%
-  mutate(term = reorder_within(term, beta, topic)) %>% # układa wyrażenia wg malejących wartości beta
-  ggplot(aes(term, beta, fill = factor(topic))) + # tematy będą zaznaczone innymi kolorami
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(term, beta, fill = factor(topic))) + 
   geom_col(show.legend = FALSE) +
   facet_wrap(~ topic, scales = "free") +
   coord_flip()+
   scale_x_reordered()
 
 #analiza emocji
+load('sentiments_lexicons.Rdata')
 
+word_emo <- word_tokens %>% 
+  inner_join(nrc %>% filter(!sentiment %in% c('positive', 'negative'))) %>% 
+  count(date, sentiment) 
 
+word_emo <- word_emo %>% 
+  group_by(sentiment) %>% 
+  mutate(n_scale = (n - mean(n))/sd(n))
+
+ggplot(data = word_emo, aes(x = date, y = n_scale)) +
+  geom_smooth(se = F, aes(color = sentiment)) +
+  geom_hline(yintercept = 0, color = 'red', linetype = 'dashed', size = 1)
 
 
