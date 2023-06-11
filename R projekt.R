@@ -17,7 +17,7 @@ library(textdata)
 
 base_url_pt1 <- "https://cryptonews.net/?page="
 
-n_index_pages <- 25
+n_index_pages <- 1000
 
 get_article_list_from_page <- function(page_no) {
   page_url <- paste0(base_url_pt1, page_no)
@@ -36,7 +36,7 @@ get_article_list_from_page <- function(page_no) {
 
 article_links <- tibble()
 
-for(i in 25:n_index_pages) {
+for(i in 7:n_index_pages) {
   article_links_tmp <- get_article_list_from_page(i)
   
   article_links <- bind_rows(article_links, article_links_tmp)
@@ -62,19 +62,12 @@ get_article <- function(art_url) {
   if(is.null(page$result)) {
     return(tibble())
   }
-  
   page <- page$result
   
-  #author <- page %>% html_node('span.source-host') %>% html_text() %>% trimws()
-  
   date <- page %>% html_node("span.datetime.flex.middle-xs") %>% html_text() %>% trimws() %>% dmy_hm()
-  
   title <- page %>%html_node("h1") %>% html_text() %>% trimws()
-  
   lead <- page %>% html_node("div.news-item.detail.content_text") %>% html_node("p") %>% html_text() %>% trimws()
-  
   body <- page %>% html_node("div.news-item.detail.content_text") %>% html_nodes("p") %>% html_text() %>% trimws()
-  
   
   article <- tibble(url = art_url, title = title, date = date, lead = lead, body = body,)
   
@@ -92,25 +85,6 @@ articles <- article_links %>%
 articles_grouped <- articles %>%
   group_by(url,title,date,lead )  %>%
   summarise(full_body = paste(body, collapse = " "))
-
-#getwd()
-#setwd('C:/Users/Dom/Desktop/R/Rcw/Text Analysis/TextAnalysis')
-#saveRDS(articles_grouped, file = "articles_full.RDS")
-
-
-#  anti_join(stop_words, by = 'word') %>%
-#  filter(!str_detect(word, '[0-9]')) %>%
-#  filter(str_detect(word, '[A-z]')) %>%
-#  filter(str_detect(word, '\\w'))
-
-#articles_long <- articles_long %>%
-#  mutate(word2 = hunspell_stem(word))
-
-#articles_long$word2 <- sapply(articles_long$word2, function(x) x[1])
-
-#articles_long <- articles_long %>% 
-#  mutate(word3 = ifelse(is.na(word2), word, word2))
-
 
 clean.corpus <- function(corpus){
   corpus <- tm_map(corpus, tolower) 
@@ -137,7 +111,7 @@ word_tokens <- articles_grouped %>%
   filter(nchar(word) > 2)
 
 #chmura słow
-word_count <- word_tokens %>% 
+word_count <- word_tokens[,-1:-3] %>% 
   count(word)
 par(mar = c(0, 0, 0, 0))
 wordcloud(word_count$word, 
@@ -150,16 +124,21 @@ word_tokens$month <- month(ymd_hms(word_tokens$date))
 
 word_top <- word_tokens[,-1:-3] %>% 
   count(month, word, sort = T) %>% 
-  group_by(month) %>% 
+  group_by(month) %>%
   top_n(15, n) %>% 
   ungroup() %>% 
   mutate(word = reorder(word, n))
+word_top <- subset(word_top, month != 2)
+word_top$month <- month.name[word_top$month]
+word_top$month <- factor(word_top$month, levels = c("March", "April", "May", "June"))
 
-ggplot(word_top, aes(x = reorder_within(word, n, month), y = n, fill = month)) +
+ggplot(word_top, aes(x = reorder_within(word, n, month), y = n, fill = factor(month))) +
   geom_col(show.legend = F) +
   coord_flip() +
   facet_wrap(~month, scales ="free_y" ) +
-  scale_x_reordered()
+  scale_x_reordered() +
+  scale_fill_manual(values = c("blue","red","green","orange")) +
+  labs(x = "Word", y = "Word Count")
 
 
 #top 3 tematy
